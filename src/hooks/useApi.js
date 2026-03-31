@@ -63,6 +63,28 @@ export function useSources() {
   return sources;
 }
 
+export function useAiBrief() {
+  const [brief, setBrief] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchBrief = useCallback(async () => {
+    try {
+      const d = await (await fetch(`${API_BASE}/api/ai-brief`)).json();
+      setBrief(d);
+    } catch (e) {}
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchBrief();
+    // Poll every 5 min — if stale, backend auto-regenerates
+    const t = setInterval(fetchBrief, 300000);
+    return () => clearInterval(t);
+  }, []);
+
+  return { brief, loading, refresh: fetchBrief };
+}
+
 export function useWebSocket(onMessage) {
   const wsRef = useRef(null);
   const connect = useCallback(() => {

@@ -5,7 +5,7 @@ import {
   Code2, Bitcoin, FlaskConical, Zap, BarChart2, Sun, Moon,
   ChevronRight, ArrowUp, MessageSquare, Clock
 } from 'lucide-react';
-import { useFeed, useStats, useTrending, useSources, useWebSocket } from './hooks/useApi';
+import { useFeed, useStats, useTrending, useSources, useWebSocket, useAiBrief } from './hooks/useApi';
 
 // ─── DESIGN TOKENS ──────────────────────────────────────────────────────────
 const SOURCE = {
@@ -207,7 +207,7 @@ function TrendingPanel({ words }) {
 }
 
 // ─── SIGNAL BRIEF PANEL ──────────────────────────────────────────────────────
-function SignalBrief({ items, stats }) {
+function SignalBrief({ items, stats, brief, briefLoading }) {
   const topAI = items.filter(x => x.category === 'ai').slice(0, 4);
 
   return (
@@ -243,34 +243,57 @@ function SignalBrief({ items, stats }) {
         {/* Divider */}
         <div className="border-t border-zinc-800/40" />
 
-        {/* Top AI signals */}
-        {topAI.length > 0 && (
-          <div>
-            <div className="flex items-center gap-1.5 mb-3">
-              <Cpu className="w-3 h-3 text-violet-400" />
-              <span className="font-mono text-[10px] text-violet-400 uppercase tracking-widest font-bold">AI Signals</span>
+        {/* AI Brief — Local LLM powered */}
+        <div>
+          <div className="flex items-center gap-1.5 mb-3">
+            <Cpu className="w-3 h-3 text-violet-400" />
+            <span className="font-mono text-[10px] text-violet-400 uppercase tracking-widest font-bold">AI Brief</span>
+            <span className="ml-auto font-mono text-[9px] text-zinc-700">llama3.2</span>
+          </div>
+
+          {briefLoading ? (
+            <div className="space-y-1.5">
+              <div className="skeleton h-3 w-full rounded" />
+              <div className="skeleton h-3 w-5/6 rounded" />
+              <div className="skeleton h-3 w-4/6 rounded" />
             </div>
-            <div className="space-y-2">
-              {topAI.map((item, i) => (
-                <motion.button
-                  key={item.id}
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.06 }}
-                  onClick={() => window.open(item.url, '_blank')}
-                  className="w-full text-left p-2.5 rounded-lg border border-zinc-800/40 hover:border-violet-800/50 bg-zinc-900/30 hover:bg-zinc-800/40 transition-all group"
-                >
-                  <p className="text-[11px] leading-relaxed text-zinc-400 group-hover:text-zinc-200 line-clamp-2 transition-colors">
-                    {item.title}
-                  </p>
+          ) : brief?.summary ? (
+            <div className="space-y-3">
+              {/* Main summary */}
+              <div className="p-2.5 rounded-lg border border-violet-900/30 bg-violet-950/20">
+                <p className="text-[11px] leading-relaxed text-zinc-300">
+                  {brief.summary.replace(/^Here is[^:]*:\n\n?/i, '')}
+                </p>
+                {brief.age > 0 && (
                   <p className="font-mono text-[9px] text-zinc-700 mt-1.5">
-                    {timeAgo(item.timestamp)} ago · {item.source}
+                    generated {Math.floor(brief.age / 60)}m ago · {brief.stale ? 'refreshing...' : 'cached'}
                   </p>
-                </motion.button>
+                )}
+              </div>
+
+              {/* Category briefs */}
+              {Object.entries(brief.categories || {}).map(([cat, text]) => text && (
+                <div key={cat} className="p-2 rounded-lg border border-zinc-800/30 bg-zinc-900/20">
+                  <p className={`font-mono text-[9px] uppercase tracking-widest mb-1 ${
+                    cat === 'ai' ? 'text-violet-500' : cat === 'tech' ? 'text-blue-500' :
+                    cat === 'crypto' ? 'text-orange-500' : 'text-emerald-500'
+                  }`}>{cat}</p>
+                  <p className="text-[10px] leading-relaxed text-zinc-500">
+                    {text.replace(/^Here is[^:]*:\n\n?/i, '').replace(/^In one sentence[^:]*:\n\n?/i, '')}
+                  </p>
+                </div>
               ))}
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="p-2.5 rounded-lg border border-zinc-800/30 bg-zinc-900/20">
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="live-dot" />
+                <p className="font-mono text-[10px] text-zinc-500">Generating brief...</p>
+              </div>
+              <p className="text-[10px] text-zinc-700">Local LLM analyzing {stats?.today || 0} signals</p>
+            </div>
+          )}
+        </div>
 
         {/* Source breakdown */}
         {stats?.per_source && (
@@ -405,8 +428,9 @@ export default function App() {
   const [toasts, setToasts]     = useState([]);
 
   const { items, loading, hasMore, loadMore, reload } = useFeed(category, source, searchQ);
-  const stats   = useStats();
+  const stats    = useStats();
   const trending = useTrending();
+  const { brief, loading: briefLoading } = useAiBrief();
 
   // debounce search
   useEffect(() => {
@@ -578,7 +602,7 @@ export default function App() {
             <TrendingPanel words={trending} />
           </div>
           <div className="flex flex-col overflow-hidden" style={{ flex: 1 }}>
-            <SignalBrief items={items} stats={stats} />
+            <SignalBrief items={items} stats={stats} brief={brief} briefLoading={briefLoading} />
           </div>
         </div>
       </div>
