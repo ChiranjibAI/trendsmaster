@@ -1,5 +1,6 @@
-export const API_BASE = import.meta.env.VITE_API_URL || 'http://187.77.185.34:8001';
-export const WS_BASE = import.meta.env.VITE_WS_URL || 'ws://187.77.185.34:8001';
+// Use relative URLs - Vercel proxies /api/* to VPS backend
+export const API_BASE = '';
+export const WS_BASE = 'wss://trends.chiranjib.xyz';
 
 export const CATEGORIES = [
   { id: 'all', label: 'All', icon: '🌐', color: 'purple' },
