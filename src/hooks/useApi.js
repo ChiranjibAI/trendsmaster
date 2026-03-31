@@ -85,6 +85,32 @@ export function useAiBrief() {
   return { brief, loading, refresh: fetchBrief };
 }
 
+export function useSwarmPredict() {
+  const [data, setData] = useState({ predictions: [], generating: false });
+  const [loading, setLoading] = useState(true);
+
+  const fetchPredict = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/swarm-predict`);
+      const d = await res.json();
+      setData(d);
+    } catch (_) {}
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchPredict();
+    // If still generating, poll every 30s until predictions arrive
+    const t = setInterval(() => {
+      if (!data.generating) return;
+      fetchPredict();
+    }, 30000);
+    return () => clearInterval(t);
+  }, [data.generating]);
+
+  return { data, loading, refresh: () => fetch(`${API_BASE}/api/swarm-predict?refresh=true`).then(fetchPredict) };
+}
+
 export function useWebSocket(onMessage) {
   const wsRef = useRef(null);
   const connect = useCallback(() => {

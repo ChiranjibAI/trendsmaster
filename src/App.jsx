@@ -5,7 +5,7 @@ import {
   Code2, Bitcoin, FlaskConical, Zap, BarChart2, Sun, Moon,
   ChevronRight, ArrowUp, MessageSquare, Clock
 } from 'lucide-react';
-import { useFeed, useStats, useTrending, useSources, useWebSocket, useAiBrief } from './hooks/useApi';
+import { useFeed, useStats, useTrending, useSources, useWebSocket, useAiBrief, useSwarmPredict } from './hooks/useApi';
 
 // ─── DESIGN TOKENS ──────────────────────────────────────────────────────────
 const SOURCE = {
@@ -417,6 +417,107 @@ function EmptyState({ search }) {
   );
 }
 
+// ─── SWARM PREDICT PANEL ─────────────────────────────────────────────────────
+const SWARM_COLORS = {
+  ai: { bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.3)', text: '#a78bfa', label: 'AI' },
+  tech: { bg: 'rgba(96,165,250,0.12)', border: 'rgba(96,165,250,0.3)', text: '#60a5fa', label: 'TECH' },
+  crypto: { bg: 'rgba(251,146,60,0.12)', border: 'rgba(251,146,60,0.3)', text: '#fb923c', label: 'CRYPTO' },
+  dev: { bg: 'rgba(52,211,153,0.12)', border: 'rgba(52,211,153,0.3)', text: '#34d399', label: 'DEV' },
+  world: { bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.3)', text: '#f87171', label: 'WORLD' },
+  science: { bg: 'rgba(74,222,128,0.12)', border: 'rgba(74,222,128,0.3)', text: '#4ade80', label: 'SCI' },
+};
+
+function SwarmPanel({ data, loading }) {
+  const preds = data?.predictions || [];
+  const isGenerating = data?.generating;
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 shrink-0"
+           style={{ height: 40, borderBottom: '1px solid #1c1c1f' }}>
+        <div className="flex items-center gap-2">
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: '#71717a' }}>
+            SWARM PREDICT
+          </span>
+          {isGenerating && (
+            <span className="flex items-center gap-1">
+              <span className="live-dot" style={{ background: '#fb923c' }} />
+              <span style={{ fontSize: 9, color: '#fb923c' }}>COMPUTING</span>
+            </span>
+          )}
+        </div>
+        <span style={{ fontSize: 9, color: '#52525b' }}>
+          {preds.length > 0 ? `${data.total_signals || 0} signals` : 'llama3.2'}
+        </span>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-3" style={{ scrollbarWidth: 'none' }}>
+        {loading || (isGenerating && preds.length === 0) ? (
+          <div className="flex flex-col gap-2 pt-1">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="rounded-lg p-3 animate-pulse"
+                   style={{ background: '#18181b', height: 72 }} />
+            ))}
+            <p style={{ fontSize: 10, color: '#52525b', textAlign: 'center', marginTop: 8 }}>
+              Swarm intelligence computing predictions...
+            </p>
+          </div>
+        ) : preds.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <p style={{ fontSize: 11, color: '#52525b', textAlign: 'center' }}>
+              Warming up swarm engine...
+            </p>
+          </div>
+        ) : (
+          <motion.div className="flex flex-col gap-2"
+            initial="hidden"
+            animate="show"
+            variants={{ show: { transition: { staggerChildren: 0.08 } } }}>
+            {preds.map((p, i) => {
+              const theme = SWARM_COLORS[p.category] || { bg: 'rgba(100,116,139,0.12)', border: 'rgba(100,116,139,0.3)', text: '#94a3b8', label: p.category?.toUpperCase() };
+              return (
+                <motion.div key={i}
+                  variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}
+                  className="rounded-lg p-3"
+                  style={{ background: theme.bg, border: `1px solid ${theme.border}` }}>
+                  {/* Category badge + confidence */}
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="rounded px-1.5 py-0.5"
+                          style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+                                   background: theme.border, color: theme.text }}>
+                      {theme.label}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <div className="rounded-full overflow-hidden"
+                           style={{ width: 32, height: 3, background: '#27272a' }}>
+                        <div className="h-full rounded-full"
+                             style={{ width: `${p.confidence}%`, background: theme.text }} />
+                      </div>
+                      <span style={{ fontSize: 9, color: theme.text }}>{p.confidence}%</span>
+                    </div>
+                  </div>
+                  {/* Prediction text */}
+                  <p style={{ fontSize: 11, color: '#d4d4d8', lineHeight: 1.5,
+                              display: '-webkit-box', WebkitLineClamp: 3,
+                              WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                    {p.prediction}
+                  </p>
+                  {/* Signal count */}
+                  <p style={{ fontSize: 9, color: '#52525b', marginTop: 4 }}>
+                    {p.signal_count} signals analyzed
+                  </p>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── APP ROOT ────────────────────────────────────────────────────────────────
 export default function App() {
   const [dark]         = useState(true);
@@ -431,6 +532,7 @@ export default function App() {
   const stats    = useStats();
   const trending = useTrending();
   const { brief, loading: briefLoading } = useAiBrief();
+  const { data: swarmData, loading: swarmLoading } = useSwarmPredict();
 
   // debounce search
   useEffect(() => {
@@ -601,8 +703,11 @@ export default function App() {
           <div className="flex flex-col overflow-hidden" style={{ height: '52%', borderBottom: '1px solid #1c1c1f' }}>
             <TrendingPanel words={trending} />
           </div>
-          <div className="flex flex-col overflow-hidden" style={{ flex: 1 }}>
+          <div className="flex flex-col overflow-hidden" style={{ height: '26%', borderBottom: '1px solid #1c1c1f' }}>
             <SignalBrief items={items} stats={stats} brief={brief} briefLoading={briefLoading} />
+          </div>
+          <div className="flex flex-col overflow-hidden" style={{ flex: 1 }}>
+            <SwarmPanel data={swarmData} loading={swarmLoading} />
           </div>
         </div>
       </div>
