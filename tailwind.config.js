@@ -4,7 +4,8 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
-      fontFamily: { sans: ['Inter', 'sans-serif'] },
+      fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'Fira Code', 'monospace'] },
+      colors: { 'gray-950': '#030712', 'gray-925': '#060b14' },
     },
   },
   plugins: [],
